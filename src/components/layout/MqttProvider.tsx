@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
+import mqtt from 'mqtt';
 import { useMqttStore } from '../../store/useMqttStore';
 import { useAppStore } from '../../store/useAppStore';
 
-const WS_URL = 'ws://127.0.0.1:8000/ws/dashboard';
+const MQTT_URL = 'wss://broker.hivemq.com:8443/mqtt';
 
 export function MqttProvider({ children }: { children: React.ReactNode }) {
-  const { setWsClient, setStatus, updateTelemetry, addLog, status, disconnect } = useMqttStore();
+  const { setMqttClient, setStatus, updateTelemetry, addLog, status, disconnect } = useMqttStore();
   const { isDemoMode } = useAppStore();
   const initialized = useRef(false);
 
@@ -19,75 +20,67 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const connectWebSocket = () => {
-      if (initialized.current) return;
-      initialized.current = true;
+    if (initialized.current) return;
+    initialized.current = true;
 
-      setStatus('CONNECTING');
-      
-      console.log('Attempting to connect to FastAPI backend via WebSocket...');
-      const ws = new WebSocket(WS_URL);
+    setStatus('CONNECTING');
+    
+    console.log('Attempting to connect to HiveMQ via secure WebSocket...');
+    const client = mqtt.connect(MQTT_URL, {
+      clientId: `mivo-web-${Math.random().toString(16).substring(2, 10)}`,
+      clean: true,
+      connectTimeout: 4000,
+      reconnectPeriod: 5000,
+    });
 
-      ws.onopen = () => {
-        console.log('Connected to FastAPI WebSocket');
-        setStatus('CONNECTED');
-        setWsClient(ws);
-      };
+    client.on('connect', () => {
+      console.log('Connected to HiveMQ WebSocket');
+      setStatus('CONNECTED');
+      setMqttClient(client);
 
-      ws.onerror = (err) => {
-        console.error('WebSocket Connection Error:', err);
-        setStatus('ERROR');
-      };
+      // Subscribe to topics
+      client.subscribe('smartblindstick/telemetry');
+      client.subscribe('smartblindstick/alerts');
+    });
 
-      ws.onclose = () => {
-        console.log('WebSocket Client Offline');
-        setStatus('DISCONNECTED');
-        initialized.current = false;
+    client.on('error', (err) => {
+      console.error('MQTT Connection Error:', err);
+      setStatus('ERROR');
+    });
+
+    client.on('offline', () => {
+      console.log('MQTT Client Offline');
+      setStatus('DISCONNECTED');
+    });
+
+    client.on('message', (topic, message) => {
+      try {
+        const payload = JSON.parse(message.toString());
         
-        // Attempt reconnect after 5s
-        setTimeout(() => {
-          if (!useAppStore.getState().isDemoMode && !initialized.current) {
-             connectWebSocket();
-          }
-        }, 5000);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const { topic, payload } = data;
-          
-          if (topic.endsWith('/telemetry')) {
-            updateTelemetry(payload);
-          } else if (topic.endsWith('/logs') || topic.endsWith('/emergency')) {
-            addLog({
-              id: `ev-${Date.now()}`,
-              device: topic.split('/')[1] || 'UNKNOWN',
-              timestamp: new Date().toLocaleTimeString(),
-              type: topic.endsWith('/emergency') ? 'Emergency' : 'System',
-              severity: topic.endsWith('/emergency') ? 'CRITICAL' : (payload.severity || 'INFO'),
-              message: payload.message || JSON.stringify(payload),
-            });
-          }
-        } catch (e) {
-          console.warn('Failed to parse WebSocket message as JSON:', event.data);
+        if (topic.endsWith('/telemetry')) {
+          updateTelemetry(payload);
+        } else if (topic.endsWith('/alerts') || topic.endsWith('/emergency')) {
+          addLog({
+            id: `ev-${Date.now()}`,
+            device: payload.device_id || 'UNKNOWN',
+            timestamp: new Date().toLocaleTimeString(),
+            type: payload.type || (topic.endsWith('/emergency') ? 'Emergency' : 'System'),
+            severity: payload.severity || (topic.endsWith('/emergency') ? 'CRITICAL' : 'INFO'),
+            message: payload.message || JSON.stringify(payload),
+          });
         }
-      };
-
-      return ws;
-    };
-
-    let ws = connectWebSocket();
+      } catch (e) {
+        console.warn('Failed to parse MQTT message as JSON:', message.toString());
+      }
+    });
 
     return () => {
-      if (ws) {
-        console.log('Disconnecting WebSocket...');
-        ws.close();
-      }
+      console.log('Disconnecting MQTT...');
+      client.end();
       setStatus('DISCONNECTED');
       initialized.current = false;
     };
-  }, [isDemoMode, setWsClient, setStatus, updateTelemetry, addLog, disconnect, status]);
+  }, [isDemoMode, setMqttClient, setStatus, updateTelemetry, addLog, disconnect, status]);
 
   return <>{children}</>;
 }

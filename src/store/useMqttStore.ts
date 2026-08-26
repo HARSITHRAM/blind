@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { MqttClient } from 'mqtt';
 
 export type MqttStatus = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -17,11 +18,11 @@ export interface TelemetryData {
 }
 
 interface MqttState {
-  wsClient: WebSocket | null;
+  mqttClient: MqttClient | null;
   status: MqttStatus;
   telemetry: TelemetryData | null;
   logs: any[];
-  setWsClient: (client: WebSocket | null) => void;
+  setMqttClient: (client: MqttClient | null) => void;
   setStatus: (status: MqttStatus) => void;
   updateTelemetry: (data: Partial<TelemetryData>) => void;
   addLog: (log: any) => void;
@@ -29,11 +30,11 @@ interface MqttState {
 }
 
 export const useMqttStore = create<MqttState>((set, get) => ({
-  wsClient: null,
+  mqttClient: null,
   status: 'DISCONNECTED',
   telemetry: null,
   logs: [],
-  setWsClient: (client) => set({ wsClient: client }),
+  setMqttClient: (client) => set({ mqttClient: client }),
   setStatus: (status) => set({ status }),
   updateTelemetry: (data) => set((state) => ({ 
     telemetry: { 
@@ -44,10 +45,10 @@ export const useMqttStore = create<MqttState>((set, get) => ({
   })),
   addLog: (log) => set((state) => ({ logs: [log, ...state.logs].slice(0, 100) })), // Keep last 100
   disconnect: () => {
-    const { wsClient } = get();
-    if (wsClient) {
-      wsClient.close();
-      set({ wsClient: null, status: 'DISCONNECTED' });
+    const { mqttClient } = get();
+    if (mqttClient) {
+      mqttClient.end();
+      set({ mqttClient: null, status: 'DISCONNECTED' });
     }
   }
 }));
