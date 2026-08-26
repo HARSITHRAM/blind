@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users as UsersIcon, Search, UserPlus, Shield, MoreVertical } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 export function Users() {
   const [search, setSearch] = useState('');
@@ -8,16 +9,31 @@ export function Users() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/users')
-      .then(res => res.json())
-      .then(data => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        let data;
+        if (useAppStore.getState().isDemoMode) {
+          const { mockUsers } = await import('../lib/mockData');
+          data = mockUsers;
+        } else {
+          const res = await fetch('http://localhost:8000/api/users');
+          data = await res.json();
+        }
         setUsers(data);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("Failed to fetch users:", err);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    loadData();
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
+    });
+    return unsub;
   }, []);
 
   const filtered = users.filter(u => 

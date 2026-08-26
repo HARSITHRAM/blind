@@ -12,6 +12,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 export function ShopDetail() {
   const { id } = useParams();
@@ -20,17 +21,32 @@ export function ShopDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/devices')
-      .then(res => res.json())
-      .then(data => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        let data;
+        if (useAppStore.getState().isDemoMode) {
+          const { mockDevices } = await import('../lib/mockData');
+          data = mockDevices;
+        } else {
+          const res = await fetch('http://localhost:8000/api/devices');
+          data = await res.json();
+        }
         const found = data.find((d: any) => d.id === id) || data.find((d: any) => d.type === 'Shop Unit') || data[0];
         setShop(found);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("Failed to fetch shop:", err);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    loadData();
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
+    });
+    return unsub;
   }, [id]);
 
   if (loading || !shop) {

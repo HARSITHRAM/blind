@@ -9,6 +9,7 @@ import {
   Ticket 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 export function LogDetail() {
   const { id } = useParams();
@@ -17,17 +18,32 @@ export function LogDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/logs')
-      .then(res => res.json())
-      .then(data => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        let data;
+        if (useAppStore.getState().isDemoMode) {
+          const { mockLogs } = await import('../lib/mockData');
+          data = mockLogs;
+        } else {
+          const res = await fetch('http://localhost:8000/api/logs');
+          data = await res.json();
+        }
         const found = data.find((l: any) => l.id === id) || data[0];
         setLog(found);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("Failed to fetch log:", err);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    loadData();
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
+    });
+    return unsub;
   }, [id]);
 
   if (loading || !log) {
