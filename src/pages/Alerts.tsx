@@ -11,9 +11,20 @@ export function Alerts() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/logs')
-      .then(res => res.json())
-      .then(data => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const { useAppStore } = await import('../store/useAppStore');
+        let data;
+        
+        if (useAppStore.getState().isDemoMode) {
+          const { mockLogs } = await import('../lib/mockData');
+          data = mockLogs;
+        } else {
+          const res = await fetch('http://localhost:8000/api/logs');
+          data = await res.json();
+        }
+        
         // Map logs to alerts
         const mapped = data
           .filter((l: any) => l.severity === 'CRITICAL' || l.severity === 'ERROR' || l.severity === 'WARNING')
@@ -27,12 +38,21 @@ export function Alerts() {
             timestamp: log.timestamp,
           }));
         setAlerts(mapped);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("Failed to fetch alerts:", err);
+      } finally {
         setLoading(false);
+      }
+    };
+    
+    loadData();
+    import('../store/useAppStore').then(({ useAppStore }) => {
+      useAppStore.subscribe((state, prevState) => {
+        if (state.isDemoMode !== prevState.isDemoMode) {
+          loadData();
+        }
       });
+    });
   }, []);
 
   const filtered = alerts.filter(a => {

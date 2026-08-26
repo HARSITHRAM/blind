@@ -11,16 +11,33 @@ export function Logs() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/logs')
-      .then(res => res.json())
-      .then(data => {
-        setLogs(data);
-        setLoading(false);
-      })
-      .catch(err => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const { useAppStore } = await import('../store/useAppStore');
+        if (useAppStore.getState().isDemoMode) {
+          const { mockLogs } = await import('../lib/mockData');
+          setLogs(mockLogs);
+        } else {
+          const res = await fetch('http://localhost:8000/api/logs');
+          const data = await res.json();
+          setLogs(data);
+        }
+      } catch (err) {
         console.error("Failed to fetch logs:", err);
+      } finally {
         setLoading(false);
+      }
+    };
+    
+    loadData();
+    import('../store/useAppStore').then(({ useAppStore }) => {
+      useAppStore.subscribe((state, prevState) => {
+        if (state.isDemoMode !== prevState.isDemoMode) {
+          loadData();
+        }
       });
+    });
   }, []);
 
   const filteredLogs = logs.filter(log => {

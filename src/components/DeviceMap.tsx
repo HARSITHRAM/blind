@@ -41,10 +41,10 @@ interface DeviceLocation {
 export function DeviceMap({ devices, height = "400px" }: { devices: DeviceLocation[], height?: string }) {
   const navigate = useNavigate();
   
-  // Default center (Guindy, Chennai) if no devices
+  // Default center (Erode, TN) if no devices
   const center: [number, number] = devices.length > 0 && devices[0].lat && devices[0].lng 
     ? [devices[0].lat, devices[0].lng] 
-    : [13.0067, 80.2206];
+    : [11.271917, 77.605333];
 
   return (
     <div style={{ height, width: '100%', borderRadius: '0.75rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>

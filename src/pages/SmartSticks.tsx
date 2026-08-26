@@ -75,41 +75,47 @@ export function SmartSticks() {
   const fetchSticks = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/devices');
-      const data = await res.json();
+      const { useAppStore } = await import('../store/useAppStore');
+      let stickData: StickDevice[] = [];
       
-      // Filter for Smart Sticks only
-      let stickData: StickDevice[] = data
-        .filter((d: any) => d.type === 'Smart Stick' || d.id.startsWith('SBS'))
-        .map((d: any, idx: number) => ({
-          ...d,
-          // Enhance with realistic hardware telemetry parameters
-          obstacleDist: [0.8, 1.4, 0.4, 2.1, 1.8, 0.6][idx % 6],
-          yoloFps: [28.5, 24.0, 14.2, 29.8, 27.0, 22.1][idx % 6],
-          sosTriggered: d.status === 'CRITICAL' || idx === 2
-        }));
-
-      // Fallback dummy dataset if backend response is empty
-      if (stickData.length === 0) {
-        stickData = [
-          { id: 'SBS-0001', type: 'Smart Stick', status: 'ONLINE', owner: 'Harsithram', battery: 85.5, temperature: 42.1, location: '12.9716, 77.5946', lastSeen: '10:45 AM', network: '4G (Airtel)', firmware: 'v3.1.4', obstacleDist: 1.2, yoloFps: 28.5 },
-          { id: 'SBS-0002', type: 'Smart Stick', status: 'WARNING', owner: 'Ramesh Kumar', battery: 22.0, temperature: 54.8, location: '12.9780, 77.5900', lastSeen: '10:41 AM', network: '4G (Jio)', firmware: 'v3.1.4', obstacleDist: 0.5, yoloFps: 24.0 },
-          { id: 'SBS-0003', type: 'Smart Stick', status: 'CRITICAL', owner: 'Anitha Roy', battery: 8.5, temperature: 68.2, location: '12.9650, 77.6010', lastSeen: '10:33 AM', network: 'WiFi (Home)', firmware: 'v3.0.9', obstacleDist: 0.3, yoloFps: 14.2, sosTriggered: true },
-          { id: 'SBS-0004', type: 'Smart Stick', status: 'ONLINE', owner: 'Suresh Menon', battery: 94.0, temperature: 39.0, location: '12.9820, 77.5850', lastSeen: '10:46 AM', network: '5G (Vodafone)', firmware: 'v3.2.0', obstacleDist: 2.1, yoloFps: 29.8 },
-          { id: 'SBS-0005', type: 'Smart Stick', status: 'ONLINE', owner: 'Priya Sharma', battery: 71.2, temperature: 44.5, location: '12.9690, 77.6080', lastSeen: '10:46 AM', network: '4G (Airtel)', firmware: 'v3.1.4', obstacleDist: 1.8, yoloFps: 27.0 },
-        ];
+      if (useAppStore.getState().isDemoMode) {
+        const { mockDevices } = await import('../lib/mockData');
+        const data = mockDevices;
+        stickData = data
+          .filter((d: any) => d.type === 'Smart Stick' || d.id.startsWith('SBS'))
+          .map((d: any, idx: number) => ({
+            ...d,
+            obstacleDist: [0.8, 1.4, 0.4, 2.1, 1.8, 0.6][idx % 6],
+            yoloFps: [28.5, 24.0, 14.2, 29.8, 27.0, 22.1][idx % 6],
+            sosTriggered: d.status === 'CRITICAL' || idx === 2
+          }));
+      } else {
+        const res = await fetch('http://localhost:8000/api/devices');
+        const data = await res.json();
+        
+        stickData = data
+          .filter((d: any) => d.type === 'Smart Stick' || d.id.startsWith('SBS'))
+          .map((d: any, idx: number) => ({
+            ...d,
+            obstacleDist: [0.8, 1.4, 0.4, 2.1, 1.8, 0.6][idx % 6],
+            yoloFps: [28.5, 24.0, 14.2, 29.8, 27.0, 22.1][idx % 6],
+            sosTriggered: d.status === 'CRITICAL' || idx === 2
+          }));
       }
 
+      if (stickData.length === 0) {
+        stickData = [
+          { id: 'SBS-0001', type: 'Smart Stick', status: 'ONLINE', owner: 'Harsithram', battery: 85.5, temperature: 42.1, location: '11.271917, 77.605333', lastSeen: '10:45 AM', network: '4G (Airtel)', firmware: 'v3.1.4', obstacleDist: 1.2, yoloFps: 28.5 },
+          { id: 'SBS-0002', type: 'Smart Stick', status: 'WARNING', owner: 'Ramesh Kumar', battery: 22.0, temperature: 54.8, location: '11.2780, 77.5900', lastSeen: '10:41 AM', network: '4G (Jio)', firmware: 'v3.1.4', obstacleDist: 0.5, yoloFps: 24.0 },
+          { id: 'SBS-0003', type: 'Smart Stick', status: 'CRITICAL', owner: 'Anitha Roy', battery: 8.5, temperature: 68.2, location: '11.2650, 77.6010', lastSeen: '10:33 AM', network: 'WiFi (Home)', firmware: 'v3.0.9', obstacleDist: 0.3, yoloFps: 14.2, sosTriggered: true }
+        ];
+      }
       setSticks(stickData);
     } catch (err) {
       console.error("Failed to fetch smart sticks:", err);
       showToast("Could not sync with live backend API. Displaying cached fleet telemetry.", "info");
       setSticks([
-        { id: 'SBS-0001', type: 'Smart Stick', status: 'ONLINE', owner: 'Harsithram', battery: 85.5, temperature: 42.1, location: '12.9716, 77.5946', lastSeen: 'Just now', network: '4G (Airtel)', firmware: 'v3.1.4', obstacleDist: 1.2, yoloFps: 28.5 },
-        { id: 'SBS-0002', type: 'Smart Stick', status: 'WARNING', owner: 'Ramesh Kumar', battery: 22.0, temperature: 54.8, location: '12.9780, 77.5900', lastSeen: '4m ago', network: '4G (Jio)', firmware: 'v3.1.4', obstacleDist: 0.5, yoloFps: 24.0 },
-        { id: 'SBS-0003', type: 'Smart Stick', status: 'CRITICAL', owner: 'Anitha Roy', battery: 8.5, temperature: 68.2, location: '12.9650, 77.6010', lastSeen: '12m ago', network: 'WiFi (Home)', firmware: 'v3.0.9', obstacleDist: 0.3, yoloFps: 14.2, sosTriggered: true },
-        { id: 'SBS-0004', type: 'Smart Stick', status: 'ONLINE', owner: 'Suresh Menon', battery: 94.0, temperature: 39.0, location: '12.9820, 77.5850', lastSeen: 'Just now', network: '5G (Vodafone)', firmware: 'v3.2.0', obstacleDist: 2.1, yoloFps: 29.8 },
-        { id: 'SBS-0005', type: 'Smart Stick', status: 'ONLINE', owner: 'Priya Sharma', battery: 71.2, temperature: 44.5, location: '12.9690, 77.6080', lastSeen: 'Just now', network: '4G (Airtel)', firmware: 'v3.1.4', obstacleDist: 1.8, yoloFps: 27.0 },
+          { id: 'SBS-0001', type: 'Smart Stick', status: 'ONLINE', owner: 'Harsithram', battery: 85.5, temperature: 42.1, location: '11.271917, 77.605333', lastSeen: '10:45 AM', network: '4G (Airtel)', firmware: 'v3.1.4', obstacleDist: 1.2, yoloFps: 28.5 }
       ]);
     } finally {
       setLoading(false);

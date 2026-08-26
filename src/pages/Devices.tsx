@@ -13,16 +13,33 @@ export function Devices() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/devices')
-      .then(res => res.json())
-      .then(data => {
-        setAllDevices(data);
-        setLoading(false);
-      })
-      .catch(err => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const { useAppStore } = await import('../store/useAppStore');
+        if (useAppStore.getState().isDemoMode) {
+          const { mockDevices } = await import('../lib/mockData');
+          setAllDevices(mockDevices);
+        } else {
+          const res = await fetch('http://localhost:8000/api/devices');
+          const data = await res.json();
+          setAllDevices(data);
+        }
+      } catch (err) {
         console.error("Failed to fetch devices:", err);
+      } finally {
         setLoading(false);
+      }
+    };
+    
+    loadData();
+    import('../store/useAppStore').then(({ useAppStore }) => {
+      useAppStore.subscribe((state, prevState) => {
+        if (state.isDemoMode !== prevState.isDemoMode) {
+          loadData();
+        }
       });
+    });
   }, []);
 
   const filteredDevices = allDevices.filter(d => {

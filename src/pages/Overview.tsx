@@ -35,41 +35,69 @@ export function Overview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch('http://localhost:8000/api/analytics').then(r => r.json()),
-      fetch('http://localhost:8000/api/logs').then(r => r.json()),
-      fetch('http://localhost:8000/api/transactions').then(r => r.json()),
-      fetch('http://localhost:8000/api/devices').then(r => r.json())
-    ]).then(([analyticsData, logsData, txData, devicesData]) => {
-      setAnalytics(analyticsData);
-      setLogs(logsData);
-      setTransactions(txData);
-      
-      const mappedDevices = devicesData.map((d: any) => {
-        let lat = 13.0067;
-        let lng = 80.2206;
-        if (d.location) {
-          const parts = d.location.split(',');
-          if (parts.length === 2) {
-            lat = parseFloat(parts[0]);
-            lng = parseFloat(parts[1]);
-          }
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        let analyticsData, logsData, txData, devicesData;
+
+        if (useAppStore.getState().isDemoMode) {
+          const mock = await import('../lib/mockData');
+          analyticsData = mock.mockAnalytics;
+          logsData = mock.mockLogs;
+          txData = mock.mockTransactions;
+          devicesData = mock.mockDevices;
+        } else {
+          const res = await Promise.all([
+            fetch('http://localhost:8000/api/analytics').then(r => r.json()),
+            fetch('http://localhost:8000/api/logs').then(r => r.json()),
+            fetch('http://localhost:8000/api/transactions').then(r => r.json()),
+            fetch('http://localhost:8000/api/devices').then(r => r.json())
+          ]);
+          analyticsData = res[0];
+          logsData = res[1];
+          txData = res[2];
+          devicesData = res[3];
         }
-        return {
-          id: d.id,
-          type: d.type,
-          name: d.owner || d.type,
-          lat,
-          lng,
-          status: d.status
-        };
-      });
-      setDevices(mappedDevices);
-      setLoading(false);
-    }).catch(err => {
-      console.error("Failed to fetch dashboard data:", err);
-      setLoading(false);
+
+        setAnalytics(analyticsData);
+        setLogs(logsData);
+        setTransactions(txData);
+        
+        const mappedDevices = devicesData.map((d: any) => {
+          let lat = 11.271917;
+          let lng = 77.605333;
+          if (d.location && d.location.includes(',')) {
+            const parts = d.location.split(',');
+            if (parts.length === 2) {
+              lat = parseFloat(parts[0]);
+              lng = parseFloat(parts[1]);
+            }
+          }
+          return {
+            id: d.id,
+            type: d.type,
+            name: d.owner || d.type,
+            lat,
+            lng,
+            status: d.status
+          };
+        });
+        setDevices(mappedDevices);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+    // Re-run if demo mode changes
+    const unsub = useAppStore.subscribe((state, prevState) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
     });
+    return unsub;
   }, []);
 
   if (loading) {
