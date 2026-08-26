@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, AlertTriangle, Search, Filter, CheckCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 export function Alerts() {
   const [search, setSearch] = useState('');
@@ -14,7 +15,6 @@ export function Alerts() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const { useAppStore } = await import('../store/useAppStore');
         let data;
         
         if (useAppStore.getState().isDemoMode) {
@@ -46,13 +46,12 @@ export function Alerts() {
     };
     
     loadData();
-    import('../store/useAppStore').then(({ useAppStore }) => {
-      useAppStore.subscribe((state, prevState) => {
-        if (state.isDemoMode !== prevState.isDemoMode) {
-          loadData();
-        }
-      });
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
     });
+    return unsub;
   }, []);
 
   const filtered = alerts.filter(a => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Terminal, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 export function Logs() {
   const [search, setSearch] = useState('');
@@ -14,7 +15,6 @@ export function Logs() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const { useAppStore } = await import('../store/useAppStore');
         if (useAppStore.getState().isDemoMode) {
           const { mockLogs } = await import('../lib/mockData');
           setLogs(mockLogs);
@@ -31,13 +31,12 @@ export function Logs() {
     };
     
     loadData();
-    import('../store/useAppStore').then(({ useAppStore }) => {
-      useAppStore.subscribe((state, prevState) => {
-        if (state.isDemoMode !== prevState.isDemoMode) {
-          loadData();
-        }
-      });
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
     });
+    return unsub;
   }, []);
 
   const filteredLogs = logs.filter(log => {

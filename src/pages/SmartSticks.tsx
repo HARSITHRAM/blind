@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { DeviceMap } from '../components/DeviceMap';
+import { useAppStore } from '../store/useAppStore';
 
 type StatusFilter = 'ALL' | 'ONLINE' | 'WARNING' | 'CRITICAL' | 'SOS';
 type ViewMode = 'GRID' | 'MAP' | 'TABLE';
@@ -75,7 +76,6 @@ export function SmartSticks() {
   const fetchSticks = async () => {
     setLoading(true);
     try {
-      const { useAppStore } = await import('../store/useAppStore');
       let stickData: StickDevice[] = [];
       
       if (useAppStore.getState().isDemoMode) {
@@ -124,6 +124,12 @@ export function SmartSticks() {
 
   useEffect(() => {
     fetchSticks();
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        fetchSticks();
+      }
+    });
+    return unsub;
   }, []);
 
   // Hardware Command execution

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Battery, Smartphone, Store, Thermometer, Wifi, Search, Filter } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 type Tab = 'All Devices' | 'Smart Sticks' | 'Shop Units';
 
@@ -16,7 +17,6 @@ export function Devices() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const { useAppStore } = await import('../store/useAppStore');
         if (useAppStore.getState().isDemoMode) {
           const { mockDevices } = await import('../lib/mockData');
           setAllDevices(mockDevices);
@@ -33,13 +33,12 @@ export function Devices() {
     };
     
     loadData();
-    import('../store/useAppStore').then(({ useAppStore }) => {
-      useAppStore.subscribe((state, prevState) => {
-        if (state.isDemoMode !== prevState.isDemoMode) {
-          loadData();
-        }
-      });
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
     });
+    return unsub;
   }, []);
 
   const filteredDevices = allDevices.filter(d => {

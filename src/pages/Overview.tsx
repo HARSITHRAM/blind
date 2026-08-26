@@ -13,6 +13,7 @@ import {
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
+import { useAppStore } from '../store/useAppStore';
 import { DeviceMap } from '../components/DeviceMap';
 
 const chartData = [
@@ -92,7 +93,7 @@ export function Overview() {
     
     loadData();
     // Re-run if demo mode changes
-    const unsub = useAppStore.subscribe((state, prevState) => {
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
       if (state.isDemoMode !== prevState.isDemoMode) {
         loadData();
       }

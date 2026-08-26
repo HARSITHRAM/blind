@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, Search, Filter, ArrowRight, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 export function Transactions() {
   const [search, setSearch] = useState('');
@@ -12,7 +13,6 @@ export function Transactions() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const { useAppStore } = await import('../store/useAppStore');
         if (useAppStore.getState().isDemoMode) {
           const { mockTransactions } = await import('../lib/mockData');
           setTransactions(mockTransactions);
@@ -29,13 +29,12 @@ export function Transactions() {
     };
     
     loadData();
-    import('../store/useAppStore').then(({ useAppStore }) => {
-      useAppStore.subscribe((state, prevState) => {
-        if (state.isDemoMode !== prevState.isDemoMode) {
-          loadData();
-        }
-      });
+    const unsub = useAppStore.subscribe((state: any, prevState: any) => {
+      if (state.isDemoMode !== prevState.isDemoMode) {
+        loadData();
+      }
     });
+    return unsub;
   }, []);
 
   const filtered = transactions.filter(tx => 
